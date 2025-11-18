@@ -71,3 +71,9 @@ mark {
   color: #e6eef8;
   border-color: #333;
 }
+
+.offcanvas {
+  background-color: inherit;
+  color: inherit;
+  max-width: 70% !important;
+}

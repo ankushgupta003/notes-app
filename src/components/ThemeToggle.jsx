@@ -4,7 +4,7 @@ function ThemeToggle() {
   };
 
   return (
-    <button className="btn btn-outline-dark mb-3" onClick={toggleTheme}>
+    <button className="btn btn-outline-dark" onClick={toggleTheme}>
       🌙 Dark Mode
     </button>
   );

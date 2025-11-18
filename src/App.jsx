@@ -1,5 +1,6 @@
 // src/App.jsx
 import React, { useEffect, useState, useCallback } from "react";
+import { Button } from "bootstrap";
 import NoteForm from "./components/NoteForm";
 import NoteList from "./components/NoteList";
 import ThemeToggle from "./components/ThemeToggle";
@@ -16,20 +17,26 @@ import {
   deleteNoteForUser,
 } from "./firebase";
 
+import logoSrc from "./assets/logo.png";
+
 function App() {
   const [user, setUser] = useState(null);
-  const [notesObj, setNotesObj] = useState({}); // object keyed by id
-  const [notesList, setNotesList] = useState([]); // array form for UI
+  const [notesObj, setNotesObj] = useState({});
+  const [notesList, setNotesList] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTag, setActiveTag] = useState("all");
 
-  // Auth listener
+  // ------------------------------------------------------------------
+  // AUTH STATE
+  // ------------------------------------------------------------------
   useEffect(() => {
     const off = onAuthStateChanged(auth, (u) => setUser(u));
     return () => off();
   }, []);
 
-  // Listen to user notes when user signs in
+  // ------------------------------------------------------------------
+  // REALTIME NOTES
+  // ------------------------------------------------------------------
   useEffect(() => {
     if (!user) {
       setNotesObj({});
@@ -42,7 +49,7 @@ function App() {
     return () => stop();
   }, [user]);
 
-  // convert notesObj to sorted array (pinned first, then newest)
+  // convert notesObj to sorted array
   useEffect(() => {
     const arr = Object.values(notesObj || {}).sort((a, b) => {
       if ((a.pinned ? 1 : 0) !== (b.pinned ? 1 : 0))
@@ -52,24 +59,18 @@ function App() {
     setNotesList(arr);
   }, [notesObj]);
 
+  // ACTIONS
   const addNote = useCallback(
     async (text, image = null, tag = "work") => {
-      if (!user) {
-        alert("Please sign in to save notes to the cloud.");
-        return;
-      }
+      if (!user) return alert("Please sign in.");
       await createNoteForUser(user.uid, { text, image, tag, pinned: false });
-      // realtime listener will update state
     },
     [user]
   );
 
   const deleteNote = useCallback(
     async (id) => {
-      if (!user) {
-        alert("Please sign in.");
-        return;
-      }
+      if (!user) return alert("Please sign in.");
       await deleteNoteForUser(user.uid, id);
     },
     [user]
@@ -77,10 +78,7 @@ function App() {
 
   const togglePin = useCallback(
     async (id) => {
-      if (!user) {
-        alert("Please sign in.");
-        return;
-      }
+      if (!user) return alert("Please sign in.");
       const existing = notesObj[id];
       if (!existing) return;
       await updateNoteForUser(user.uid, id, { pinned: !existing.pinned });
@@ -90,10 +88,7 @@ function App() {
 
   const editNote = useCallback(
     async (id, newText, newTag = null) => {
-      if (!user) {
-        alert("Please sign in.");
-        return;
-      }
+      if (!user) return alert("Please sign in.");
       await updateNoteForUser(user.uid, id, {
         text: newText,
         ...(newTag ? { tag: newTag } : {}),
@@ -102,35 +97,108 @@ function App() {
     [user]
   );
 
-  // Filter notes by tag and search
+  // FILTER
   const filtered = notesList.filter((n) => {
     if (activeTag !== "all" && n.tag !== activeTag) return false;
     if (!searchTerm) return true;
-    return (n.text || "").toLowerCase().includes(searchTerm.toLowerCase());
+    return n.text?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  // ------------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------------
   return (
-    <div className="container py-5">
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        <h1 className="app-title mb-0">📝 Smart Notes</h1>
-
+    <div className="container py-3">
+      {/* -------------------------------------------------------------- */}
+      {/* HEADER */}
+      {/* -------------------------------------------------------------- */}
+      <header className="d-flex align-items-center justify-content-between mb-3">
+        {/* Left section → Logo + Title */}
         <div className="d-flex align-items-center gap-2">
-          <input
-            type="search"
-            className="form-control me-2"
-            placeholder="Search notes..."
-            style={{ minWidth: 220 }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+          <img
+            src={logoSrc}
+            alt="logo"
+            className="me-2"
+            style={{ height: 42 }}
+            onError={(e) => (e.target.style.display = "none")}
           />
+
+          <div className="d-none d-sm-block">
+            <h2 className="mb-0 fw-bold">Smart Notes</h2>
+            <div className="text-muted small">Clean • Fast • Private</div>
+          </div>
+        </div>
+
+        {/* Right section → Desktop toggles */}
+        <div className="d-none d-md-flex align-items-center gap-3">
           <ThemeToggle />
           <AuthButton />
         </div>
+
+        {/* Mobile Hamburger Button */}
+        <button
+          className="btn btn-outline-secondary d-md-none"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#mobileMenu"
+        >
+          <i className="bi bi-list fs-3"></i>
+        </button>
+      </header>
+
+      {/* -------------------------------------------------------------- */}
+      {/* OFFCANVAS MENU (MOBILE) */}
+      {/* -------------------------------------------------------------- */}
+      <div className="offcanvas offcanvas-end" tabIndex="-1" id="mobileMenu">
+        <div className="offcanvas-header">
+          <h5 className="offcanvas-title">Menu</h5>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="offcanvas"
+          ></button>
+        </div>
+
+        <div className="offcanvas-body d-flex flex-column gap-4">
+          <div>
+            <ThemeToggle />
+          </div>
+          <div>
+            <AuthButton />
+          </div>
+
+          <hr />
+
+          <p className="text-muted small">Filters</p>
+          <TagFilter
+            tags={TAGS}
+            activeTag={activeTag}
+            setActiveTag={setActiveTag}
+          />
+        </div>
       </div>
 
-      <NoteForm addNote={addNote} />
-
+      {/* -------------------------------------------------------------- */}
+      {/* SEARCH BAR */}
+      {/* -------------------------------------------------------------- */}
       <div className="mb-3">
+        <input
+          type="search"
+          className="form-control form-control-lg"
+          placeholder="Search notes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* -------------------------------------------------------------- */}
+      {/* NOTE FORM */}
+      {/* -------------------------------------------------------------- */}
+      <div className="mb-3">
+        <NoteForm addNote={addNote} />
+      </div>
+
+      {/* Desktop Tag Filter */}
+      <div className="d-none d-md-block mb-3">
         <TagFilter
           tags={TAGS}
           activeTag={activeTag}
@@ -138,6 +206,9 @@ function App() {
         />
       </div>
 
+      {/* -------------------------------------------------------------- */}
+      {/* NOTES LIST */}
+      {/* -------------------------------------------------------------- */}
       <NoteList
         notes={filtered}
         rawNotes={notesList}
