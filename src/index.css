@@ -1,0 +1,38 @@
+/* highlight style used by NoteItem */
+mark {
+  background: #fff59d; /* subtle yellow */
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+/* keep professional theme */
+body {
+  background-color: #f4f7fb;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial;
+  color: #2b3a42;
+}
+
+.note-card {
+  border-radius: 12px;
+  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* dark mode tweaks */
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e6eef8 !important;
+}
+
+.dark-mode .note-card {
+  background-color: #1f1f1f !important;
+  color: #e6eef8 !important;
+}
+
+.dark-mode input.form-control,
+.dark-mode textarea.form-control {
+  background: #222;
+  color: #e6eef8;
+  border-color: #333;
+}
