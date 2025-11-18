@@ -3,11 +3,13 @@ import { useState, useEffect, useMemo } from "react";
 import NoteForm from "./components/NoteForm";
 import NoteList from "./components/NoteList";
 import ThemeToggle from "./components/ThemeToggle";
+import TagFilter from "./components/TagFilter";
+import { TAGS } from "./constants/tags";
 
 function App() {
   const [notes, setNotes] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeTag, setActiveTag] = useState("all");
 
   // Load from localStorage
   useEffect(() => {
@@ -20,41 +22,43 @@ function App() {
     localStorage.setItem("notes", JSON.stringify(notes));
   }, [notes]);
 
-  // Debounce search input (300ms)
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchTerm]);
-
-  const addNote = (text, image = null) => {
-    setNotes([
-      ...notes,
-      {
-        id: Date.now(),
-        text,
-        image,
-        pinned: false,
-      },
-    ]);
+  const addNote = (text, image = null, tag = "work") => {
+    const newNote = {
+      id: Date.now(),
+      text,
+      image,
+      tag,
+      pinned: false,
+    };
+    // newest first
+    setNotes((s) => [newNote, ...s]);
   };
 
-  const deleteNote = (id) => setNotes(notes.filter((n) => n.id !== id));
+  const deleteNote = (id) => setNotes((s) => s.filter((n) => n.id !== id));
 
   const togglePin = (id) =>
-    setNotes(notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n)));
+    setNotes((s) =>
+      s.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
+    );
 
-  const editNote = (id, newText) =>
-    setNotes(notes.map((n) => (n.id === id ? { ...n, text: newText } : n)));
+  const editNote = (id, newText, newTag = null) =>
+    setNotes((s) =>
+      s.map((n) =>
+        n.id === id
+          ? { ...n, text: newText, ...(newTag ? { tag: newTag } : {}) }
+          : n
+      )
+    );
 
-  // Filter notes by debounced search term (case-insensitive)
+  // Combined filtering by tag + search term
   const filteredNotes = useMemo(() => {
-    if (!debouncedSearch) return notes;
-    const q = debouncedSearch.toLowerCase();
+    const q = searchTerm.trim().toLowerCase();
     return notes.filter((n) => {
-      const txt = (n.text || "").toLowerCase();
-      return txt.includes(q);
+      if (activeTag !== "all" && n.tag !== activeTag) return false;
+      if (!q) return true;
+      return (n.text || "").toLowerCase().includes(q);
     });
-  }, [notes, debouncedSearch]);
+  }, [notes, searchTerm, activeTag]);
 
   return (
     <div className="container py-5">
@@ -62,7 +66,6 @@ function App() {
         <h1 className="app-title mb-0">📝 Smart Notes</h1>
 
         <div className="d-flex align-items-center gap-2">
-          {/* Search input */}
           <input
             type="search"
             className="form-control me-2"
@@ -77,13 +80,22 @@ function App() {
       </div>
 
       <NoteForm addNote={addNote} />
+
+      <div className="mb-3">
+        <TagFilter
+          tags={TAGS}
+          activeTag={activeTag}
+          setActiveTag={setActiveTag}
+        />
+      </div>
+
       <NoteList
         notes={filteredNotes}
-        rawNotes={notes} // pass original list for pin-ordering if needed
+        rawNotes={notes}
         deleteNote={deleteNote}
         togglePin={togglePin}
         editNote={editNote}
-        highlight={debouncedSearch}
+        highlight={searchTerm.trim()}
       />
     </div>
   );

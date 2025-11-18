@@ -12,16 +12,14 @@ function NoteList({
   if (!rawNotes || rawNotes.length === 0)
     return <p className="text-center text-muted mt-4">No notes yet...</p>;
 
-  // pinned ordering should be based on full list (so pins persist even when searching)
-  // we'll get pinned ids from rawNotes
+  // pinned ordering should be based on full list
   const pinnedIds = new Set(rawNotes.filter((n) => n.pinned).map((n) => n.id));
 
-  // sort incoming notes so pinned ones appear first (if they are present in the filtered list)
   const sorted = [...notes].sort((a, b) => {
     const pa = pinnedIds.has(a.id) ? 1 : 0;
     const pb = pinnedIds.has(b.id) ? 1 : 0;
     if (pa === pb) return b.id - a.id; // newest first
-    return pa - pb ? -1 : 1; // pinned first
+    return pa > pb ? -1 : 1; // pinned first
   });
 
   if (sorted.length === 0)

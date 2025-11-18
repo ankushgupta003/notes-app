@@ -36,3 +36,38 @@ body {
   color: #e6eef8;
   border-color: #333;
 }
+.note-card {
+  border-radius: 12px;
+  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Make select and input in forms look good */
+.form-select,
+.form-control {
+  border-radius: 10px;
+}
+
+/* custom mark highlight */
+mark {
+  background: #fff59d;
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+/* dark mode tweaks */
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e6eef8 !important;
+}
+.dark-mode .note-card {
+  background-color: #1f1f1f !important;
+  color: #e6eef8 !important;
+}
+.dark-mode input.form-control,
+.dark-mode textarea.form-control,
+.dark-mode .form-select {
+  background: #222;
+  color: #e6eef8;
+  border-color: #333;
+}
