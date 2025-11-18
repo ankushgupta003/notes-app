@@ -1,64 +1,113 @@
 // src/App.jsx
-import { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import NoteForm from "./components/NoteForm";
 import NoteList from "./components/NoteList";
 import ThemeToggle from "./components/ThemeToggle";
 import TagFilter from "./components/TagFilter";
+import AuthButton from "./components/AuthButton";
 import { TAGS } from "./constants/tags";
 
+import {
+  auth,
+  onAuthStateChanged,
+  startListeningToUserNotes,
+  createNoteForUser,
+  updateNoteForUser,
+  deleteNoteForUser,
+} from "./firebase";
+
 function App() {
-  const [notes, setNotes] = useState([]);
+  const [user, setUser] = useState(null);
+  const [notesObj, setNotesObj] = useState({}); // object keyed by id
+  const [notesList, setNotesList] = useState([]); // array form for UI
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTag, setActiveTag] = useState("all");
 
-  // Load from localStorage
+  // Auth listener
   useEffect(() => {
-    const saved = localStorage.getItem("notes");
-    if (saved) setNotes(JSON.parse(saved));
+    const off = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => off();
   }, []);
 
-  // Save to localStorage
+  // Listen to user notes when user signs in
   useEffect(() => {
-    localStorage.setItem("notes", JSON.stringify(notes));
-  }, [notes]);
-
-  const addNote = (text, image = null, tag = "work") => {
-    const newNote = {
-      id: Date.now(),
-      text,
-      image,
-      tag,
-      pinned: false,
-    };
-    // newest first
-    setNotes((s) => [newNote, ...s]);
-  };
-
-  const deleteNote = (id) => setNotes((s) => s.filter((n) => n.id !== id));
-
-  const togglePin = (id) =>
-    setNotes((s) =>
-      s.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
-    );
-
-  const editNote = (id, newText, newTag = null) =>
-    setNotes((s) =>
-      s.map((n) =>
-        n.id === id
-          ? { ...n, text: newText, ...(newTag ? { tag: newTag } : {}) }
-          : n
-      )
-    );
-
-  // Combined filtering by tag + search term
-  const filteredNotes = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    return notes.filter((n) => {
-      if (activeTag !== "all" && n.tag !== activeTag) return false;
-      if (!q) return true;
-      return (n.text || "").toLowerCase().includes(q);
+    if (!user) {
+      setNotesObj({});
+      setNotesList([]);
+      return;
+    }
+    const stop = startListeningToUserNotes(user.uid, (obj) => {
+      setNotesObj(obj || {});
     });
-  }, [notes, searchTerm, activeTag]);
+    return () => stop();
+  }, [user]);
+
+  // convert notesObj to sorted array (pinned first, then newest)
+  useEffect(() => {
+    const arr = Object.values(notesObj || {}).sort((a, b) => {
+      if ((a.pinned ? 1 : 0) !== (b.pinned ? 1 : 0))
+        return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+      return b.updatedAt - a.updatedAt;
+    });
+    setNotesList(arr);
+  }, [notesObj]);
+
+  const addNote = useCallback(
+    async (text, image = null, tag = "work") => {
+      if (!user) {
+        alert("Please sign in to save notes to the cloud.");
+        return;
+      }
+      await createNoteForUser(user.uid, { text, image, tag, pinned: false });
+      // realtime listener will update state
+    },
+    [user]
+  );
+
+  const deleteNote = useCallback(
+    async (id) => {
+      if (!user) {
+        alert("Please sign in.");
+        return;
+      }
+      await deleteNoteForUser(user.uid, id);
+    },
+    [user]
+  );
+
+  const togglePin = useCallback(
+    async (id) => {
+      if (!user) {
+        alert("Please sign in.");
+        return;
+      }
+      const existing = notesObj[id];
+      if (!existing) return;
+      await updateNoteForUser(user.uid, id, { pinned: !existing.pinned });
+    },
+    [user, notesObj]
+  );
+
+  const editNote = useCallback(
+    async (id, newText, newTag = null) => {
+      if (!user) {
+        alert("Please sign in.");
+        return;
+      }
+      await updateNoteForUser(user.uid, id, {
+        text: newText,
+        ...(newTag ? { tag: newTag } : {}),
+      });
+    },
+    [user]
+  );
+
+  // Filter notes by tag and search
+  const filtered = notesList.filter((n) => {
+    if (activeTag !== "all" && n.tag !== activeTag) return false;
+    if (!searchTerm) return true;
+    return (n.text || "").toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="container py-5">
@@ -74,8 +123,8 @@ function App() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-
           <ThemeToggle />
+          <AuthButton />
         </div>
       </div>
 
@@ -90,8 +139,8 @@ function App() {
       </div>
 
       <NoteList
-        notes={filteredNotes}
-        rawNotes={notes}
+        notes={filtered}
+        rawNotes={notesList}
         deleteNote={deleteNote}
         togglePin={togglePin}
         editNote={editNote}

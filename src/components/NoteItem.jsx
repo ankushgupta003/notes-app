@@ -1,6 +1,6 @@
-// src/components/NoteItem.jsx
 import { useState } from "react";
 import { TAGS } from "../constants/tags";
+import { jsPDF } from "jspdf"; // <-- ADD THIS
 
 function getHighlightedHtml(text, query) {
   if (!query) return { __html: text };
@@ -22,6 +22,37 @@ function NoteItem({ note, deleteNote, togglePin, editNote, highlight }) {
   };
 
   const tagObj = TAGS.find((t) => t.id === note.tag) || TAGS[1];
+
+  // ------------------------------------
+  // 🚀 PDF Export Function
+  // ------------------------------------
+  const exportSingleNote = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Note", 10, 20);
+
+    // text
+    doc.setFontSize(12);
+    doc.text(note.text || "", 10, 40);
+
+    // tag
+    if (note.tag) {
+      doc.setFontSize(12);
+      doc.text(`Tag: ${tagObj.label}`, 10, 60);
+    }
+
+    // image (optional)
+    if (note.image) {
+      try {
+        doc.addImage(note.image, "JPEG", 10, 80, 80, 80);
+      } catch (e) {
+        console.warn("Image couldn't be added to PDF:", e);
+      }
+    }
+
+    doc.save(`note-${note.id}.pdf`);
+  };
+  // ------------------------------------
 
   return (
     <div className="p-3 bg-white note-card position-relative">
@@ -124,12 +155,18 @@ function NoteItem({ note, deleteNote, togglePin, editNote, highlight }) {
           />
 
           <div className="d-flex gap-2">
+            {/* NEW PDF BUTTON */}
+            <button className="btn btn-sm btn-dark" onClick={exportSingleNote}>
+              PDF
+            </button>
+
             <button
               className="btn btn-sm btn-primary"
               onClick={() => setIsEditing(true)}
             >
               Edit
             </button>
+
             <button
               className="btn btn-sm btn-danger"
               onClick={() => deleteNote(note.id)}
